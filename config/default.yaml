@@ -1,0 +1,70 @@
+lr_backbone: 1.6e-3
+lr_head: 1.6e-2
+lr_decay_scale: 1.0e-2
+batch_size: 8
+image_size:
+- 768
+- 768
+max_epochs: 30
+model_name:
+out_indices:
+- 3
+- 4
+n_splits: 5
+num_classes: 15587
+num_species_classes: 26
+pretrained: true
+warmup_steps_ratio: 0.2
+val_bbox: fullbody
+test_bboxes:
+- fullbody
+- fullbody_charm
+bboxes:
+  fullbody_charm: 0.15
+  fullbody: 0.60
+  backfin: 0.15
+  detic: 0.05
+  none: 0.05
+bbox_conf_threshold: 0.01
+n_data: -1
+global_pool:
+  arch: GeM
+  p: 3
+  train: false
+normalization: batchnorm
+optimizer: AdamW
+loss_fn: CrossEntropy
+pseudo_label:
+pseudo_conf_threshold: 0.0
+
+loss_id_ratio: 0.437338
+margin_coef_id: 0.27126
+margin_coef_species: 0.226253
+margin_power_id: -0.364399
+margin_power_species: -0.720133
+s_id: 20.9588
+s_species: 33.1383
+
+margin_cons_id: 0.05
+margin_cons_species: 0.05
+n_center_id: 2
+n_center_species: 2
+
+aug:
+  rotate: 15
+  translate: 0.25
+  shear: 3
+  p_affine: 0.5
+  crop_scale: 0.9
+  crop_l: 0.75
+  crop_r: 1.3333333333333333
+  p_gray: 0.1
+  p_blur: 0.05
+  p_noise: 0.05
+  p_downscale: 0.0
+  p_shuffle: 0.3
+  p_posterize: 0.2
+  p_bright_contrast: 0.5
+  p_cutout: 0.05
+  p_snow: 0.1
+  p_rain: 0.05

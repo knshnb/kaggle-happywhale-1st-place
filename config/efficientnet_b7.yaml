@@ -1,0 +1,12 @@
+batch_size: 4
+image_size:
+- 1024
+- 1024
+max_epochs: 30
+model_name: tf_efficientnet_b7_ns
+out_indices:
+- 3
+- 4
+n_splits: -1
+pseudo_label: pseudo_labels/round2.csv
+pseudo_conf_threshold: 0.6

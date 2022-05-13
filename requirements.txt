@@ -1,0 +1,4 @@
+albumentations==1.1.0
+git+https://github.com/PytorchLightning/pytorch-lightning.git@1.6.2
+timm==0.5.4
+wandb==0.12.16

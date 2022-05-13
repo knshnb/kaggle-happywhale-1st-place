@@ -1,0 +1,13 @@
+batch_size: 128
+image_size:
+- 128
+- 128
+max_epochs: 5
+model_name: resnet18d
+out_indices:
+- 3
+- 4
+n_splits: 5
+n_data: 1000
+pseudo_label:
+pseudo_conf_threshold: 0.0
