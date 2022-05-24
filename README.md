@@ -2,7 +2,7 @@
 This is the knshnb's part of the Preferred Dolphin's solution for [Happywhale - Whale and Dolphin Identification](https://www.kaggle.com/competitions/happy-whale-and-dolphin).
 
 ## Dataset
-Please prepare dataset according to the instruction of dataset repository and place under `input/`.
+Please prepare dataset according to [input/README.md](input/README.md) and place under `input/`.
 ```
 $ ls -F input
 fullbody_test_charm.csv   pseudo_labels/          test_backfin.csv*  train_images/
@@ -50,4 +50,4 @@ Ensembling more backbones and charmq's modesl can achieve even better results.
 
 ## Links
 - For an overview of our key ideas and detailed explanation, please also refer to [1st Place Solution](https://www.kaggle.com/competitions/happy-whale-and-dolphin/discussion/320192) in Kaggle discussion.
-- My teammate charmq's repository will also be published soon.
+- My teammate [charmq's repository](https://github.com/tyamaguchi17/kaggle-happywhale-1st-place-solution-charmq).
