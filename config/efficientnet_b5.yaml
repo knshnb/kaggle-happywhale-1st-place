@@ -3,7 +3,7 @@ image_size:
 - 1024
 - 1024
 max_epochs: 30
-model_name: tf_efficientnet_b7_ns
+model_name: tf_efficientnet_b5_ns
 out_indices:
 - 3
 - 4
