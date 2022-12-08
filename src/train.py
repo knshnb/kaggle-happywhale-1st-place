@@ -1,13 +1,15 @@
 import argparse
 import os
 import warnings
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+import optuna
 import pandas as pd
 import timm
 import torch
 import wandb
+from optuna.integration import PyTorchLightningPruningCallback
 from pytorch_lightning import LightningDataModule, LightningModule, Trainer
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
@@ -239,7 +241,8 @@ def train(
     fold: int,
     do_inference: bool = False,
     additional_dataset: WhaleDataset = None,
-):
+    optuna_trial: Optional[optuna.Trial] = None,
+) -> float:
     out_dir = f"{args.out_base_dir}/{args.exp_name}/{fold}"
     id_class_nums = df.individual_id.value_counts().sort_index().values
     species_class_nums = df.species.value_counts().sort_index().values
@@ -255,6 +258,8 @@ def train(
             )
         )
     callbacks = [LearningRateMonitor("epoch")]
+    if optuna_trial is not None:
+        callbacks.append(PyTorchLightningPruningCallback(optuna_trial, "val/mapNone"))
     if args.save_checkpoint:
         callbacks.append(ModelCheckpoint(out_dir, save_last=True, save_top_k=0))
     trainer = Trainer(
@@ -283,6 +288,7 @@ def train(
 
     if args.wandb_logger:
         wandb.finish()
+    return trainer.callback_metrics["val/mapNone"].item()
 
 
 def main():

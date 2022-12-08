@@ -1,4 +1,5 @@
 albumentations==1.1.0
-git+https://github.com/PytorchLightning/pytorch-lightning.git@1.6.2
+optuna==3.0.4
+pytorch-lightning==1.5.10
 timm==0.5.4
 wandb==0.12.16
