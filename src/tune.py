@@ -26,7 +26,7 @@ def main():
     base_cfg = load_config(base_args.config_path, "config/default.yaml")
     df = load_df(base_args.in_base_dir, base_cfg, "train.csv", True)
 
-    def objective(trial: optuna.trial.Trial):
+    def objective(trial: optuna.trial.Trial) -> float:
         args = copy.deepcopy(base_args)
         args.exp_name = f"{args.exp_name}/{trial.number}"
 
@@ -40,7 +40,9 @@ def main():
         cfg["margin_coef_id"] = trial.suggest_float("margin_coef_id", 0.2, 1.0)
         cfg["margin_coef_species"] = trial.suggest_float("margin_coef_species", 0.2, 1.0)
 
-        return train(df, args, cfg, 0, optuna_trial=trial)
+        score = train(df, args, cfg, 0, optuna_trial=trial)
+        assert score is not None
+        return score
 
     storage = optuna.storages.RDBStorage(
         url=base_args.rdb_url,

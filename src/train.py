@@ -242,7 +242,7 @@ def train(
     do_inference: bool = False,
     additional_dataset: WhaleDataset = None,
     optuna_trial: Optional[optuna.Trial] = None,
-) -> float:
+) -> Optional[float]:
     out_dir = f"{args.out_base_dir}/{args.exp_name}/{fold}"
     id_class_nums = df.individual_id.value_counts().sort_index().values
     species_class_nums = df.species.value_counts().sort_index().values
@@ -288,7 +288,10 @@ def train(
 
     if args.wandb_logger:
         wandb.finish()
-    return trainer.callback_metrics["val/mapNone"].item()
+    if optuna_trial is not None:
+        return trainer.callback_metrics["val/mapNone"].item()
+    else:
+        return None
 
 
 def main():
