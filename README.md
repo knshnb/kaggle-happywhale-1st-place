@@ -48,6 +48,20 @@ In our post submission, single model (efficientnet_b7) achieved a score that cou
 We also confirmed that ensemble of only two models (efficientnet_b6 and efficientnet_b7) could win 1st place.
 Ensembling more backbones and charmq's modesl can achieve even better results.
 
+## Citation
+```
+@article{patton2023deep,
+  title={A deep learning approach to photo--identification demonstrates high performance on two dozen cetacean species},
+  author={Patton, Philip T and Cheeseman, Ted and Abe, Kenshin and Yamaguchi, Taiki and Reade, Walter and Southerland, Ken and Howard, Addison and Oleson, Erin M and Allen, Jason B and Ashe, Erin and others},
+  journal={Methods in ecology and evolution},
+  volume={14},
+  number={10},
+  pages={2611--2625},
+  year={2023},
+  publisher={Wiley Online Library}
+}
+```
+
 ## Links
 - For an overview of our key ideas and detailed explanation, please also refer to [1st Place Solution](https://www.kaggle.com/competitions/happy-whale-and-dolphin/discussion/320192) in Kaggle discussion.
 - My teammate [charmq's repository](https://github.com/tyamaguchi17/kaggle-happywhale-1st-place-solution-charmq).
