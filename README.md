@@ -7,8 +7,9 @@ Dependencies are managed with [uv](https://docs.astral.sh/uv/).
 $ uv sync
 ```
 
-The dependencies were upgraded after the competition (PyTorch 2, Lightning 2, albumentations 2, Python 3.14), so scores may differ slightly from the reported ones.
-The competition-era versions (Python 3.10, PyTorch 1.11, PyTorch Lightning 1.5) are recorded in the git history of `pyproject.toml`.
+The dependencies were upgraded after the competition (PyTorch 2, Lightning 2, albumentations 2, Python 3.14).
+The reported scores were obtained with the original versions and have not been re-verified after the upgrade, so results may differ slightly.
+The code as used in the competition (Python 3.10, PyTorch 1.11, PyTorch Lightning 1.5, with `requirements.txt` and the original `Dockerfile`) is available at the [`kaggle-submission`](https://github.com/knshnb/kaggle-happywhale-1st-place/tree/kaggle-submission) tag.
 
 ## Dataset
 Please prepare dataset according to [input/README.md](input/README.md) and place under `input/`.
