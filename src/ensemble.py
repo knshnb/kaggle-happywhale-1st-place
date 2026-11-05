@@ -127,7 +127,9 @@ def make_submission(
 
         df = pd.read_csv(f"{args.in_base_dir}/sample_submission.csv")
         df["predictions"] = [make_str(id_list) for id_list in top5]
-        df.to_csv(f"submission/{args.out_prefix}-{new_ratio}-{threshold}.csv", index=False, columns=["image", "predictions"])
+        df.to_csv(
+            f"submission/{args.out_prefix}-{new_ratio}-{threshold}.csv", index=False, columns=["image", "predictions"]
+        )
 
     # generate pseudo label
     df = pd.read_csv(f"{args.in_base_dir}/sample_submission.csv")
@@ -138,7 +140,9 @@ def make_submission(
     le_species.classes_ = np.load(f"{args.in_base_dir}/species.npy", allow_pickle=True)
     df["species"] = le_species.inverse_transform(species_mat.argmax(1))
     df.to_csv(
-        f"submission/pseudo_label_{args.out_prefix}.csv", index=False, columns=["image", "individual_id", "conf", "species"]
+        f"submission/pseudo_label_{args.out_prefix}.csv",
+        index=False,
+        columns=["image", "individual_id", "conf", "species"],
     )
 
 

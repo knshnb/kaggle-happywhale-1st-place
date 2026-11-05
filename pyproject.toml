@@ -1,2 +1,56 @@
-[tool.black]
+[project]
+name = "kaggle-happywhale-1st-place"
+version = "0.1.0"
+description = "knshnb's part of the 1st place solution of Kaggle Happywhale"
+readme = "README.md"
+requires-python = "==3.10.*"
+dependencies = [
+  # requirements.txt
+  "albumentations==1.1.0",
+  "opencv-python-headless==4.5.5.64",
+  "optuna==3.0.4",
+  "pandas==1.3.5",
+  "pytorch-lightning==1.5.10",
+  "timm==0.5.4",
+  "wandb==0.12.16",
+  # Provided by nvcr.io/nvidia/pytorch:22.02-py3 (Dockerfile)
+  "numpy<1.24",
+  "pyyaml",
+  "scikit-learn<1.2",
+  "scipy",
+  "torch==1.11.0",
+  "torchvision==0.12.0",
+]
+
+[dependency-groups]
+dev = [
+  "ruff>=0.16,<0.17",
+  "ty>=0.0.73,<0.1",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
+ignore = [
+  "B023",    # make_str closure in ensemble.py
+  "PLR0124", # `s == s` as NaN check
+  "PLR0402", # `import torch.nn as nn`
+  "SIM118",  # `in dict.keys()`
+  "UP006",   # typing.Dict / List / Tuple
+  "UP035",
+  "UP045",   # Optional[X]
+]
+
+# Pre-existing diagnostics in the original code.
+[tool.ty.rules]
+invalid-argument-type = "ignore"
+invalid-method-override = "ignore"
+invalid-mutable-override = "ignore"
+invalid-parameter-default = "ignore"
+no-matching-overload = "ignore"
+unresolved-attribute = "ignore"
+unsupported-operator = "ignore"
