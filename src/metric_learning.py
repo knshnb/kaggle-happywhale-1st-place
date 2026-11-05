@@ -46,10 +46,10 @@ class ArcFaceLossAdaptiveMargin(nn.modules.Module):
 
     def forward(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         ms = self.margins[labels.cpu().numpy()]
-        cos_m = torch.from_numpy(np.cos(ms)).float().cuda()
-        sin_m = torch.from_numpy(np.sin(ms)).float().cuda()
-        th = torch.from_numpy(np.cos(math.pi - ms)).float().cuda()
-        mm = torch.from_numpy(np.sin(math.pi - ms) * ms).float().cuda()
+        cos_m = torch.from_numpy(np.cos(ms)).float().to(logits.device)
+        sin_m = torch.from_numpy(np.sin(ms)).float().to(logits.device)
+        th = torch.from_numpy(np.cos(math.pi - ms)).float().to(logits.device)
+        mm = torch.from_numpy(np.sin(math.pi - ms) * ms).float().to(logits.device)
         labels = F.one_hot(labels, self.out_dim).float()
         logits = logits.float()
         cosine = logits

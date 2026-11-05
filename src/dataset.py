@@ -2,6 +2,7 @@ import albumentations as A
 import cv2
 import numpy as np
 import pandas as pd
+from albumentations.core.composition import TransformsSeqType
 from albumentations.pytorch import ToTensorV2
 from sklearn import preprocessing
 from torch.utils.data import Dataset
@@ -28,7 +29,7 @@ class WhaleDataset(Dataset):
         self.df = df
         self.val_bbox_name = val_bbox_name
         self.data_aug = data_aug
-        augments = []
+        augments: TransformsSeqType = []
         if data_aug:
             aug = cfg.aug
             augments = [
@@ -39,24 +40,27 @@ class WhaleDataset(Dataset):
                     p=aug.p_affine,
                 ),
                 A.RandomResizedCrop(
-                    self.cfg.image_size[0],
-                    self.cfg.image_size[1],
+                    (self.cfg.image_size[0], self.cfg.image_size[1]),
                     scale=(aug.crop_scale, 1.0),
                     ratio=(aug.crop_l, aug.crop_r),
                 ),
                 A.ToGray(p=aug.p_gray),
-                A.GaussianBlur(blur_limit=(3, 7), p=aug.p_blur),
-                A.GaussNoise(p=aug.p_noise),
-                A.Downscale(scale_min=0.5, scale_max=0.5, p=aug.p_downscale),
+                # Explicit arguments keep the albumentations 1.1.0 defaults used in the competition.
+                # sigma_limit=0 is broken in 2.0.8; (0.8, 1.4) is OpenCV's auto sigma for ksize 3-7.
+                A.GaussianBlur(blur_limit=(3, 7), sigma_limit=(0.8, 1.4), p=aug.p_blur),
+                A.GaussNoise(std_range=(10**0.5 / 255, 50**0.5 / 255), p=aug.p_noise),
+                A.Downscale(scale_range=(0.5, 0.5), p=aug.p_downscale),
                 A.RandomGridShuffle(grid=(2, 2), p=aug.p_shuffle),
                 A.Posterize(p=aug.p_posterize),
                 A.RandomBrightnessContrast(p=aug.p_bright_contrast),
-                A.Cutout(p=aug.p_cutout),
+                A.CoarseDropout(
+                    num_holes_range=(8, 8), hole_height_range=(8, 8), hole_width_range=(8, 8), p=aug.p_cutout
+                ),
                 A.RandomSnow(p=aug.p_snow),
-                A.RandomRain(p=aug.p_rain),
+                A.RandomRain(drop_length=20, p=aug.p_rain),
                 A.HorizontalFlip(p=0.5),
             ]
-        augments.append(A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
+        augments.append(A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)))
         augments.append(ToTensorV2())  # HWC to CHW
         self.transform = A.Compose(augments)
 
@@ -65,10 +69,11 @@ class WhaleDataset(Dataset):
 
     def get_original_image(self, i: int):
         bgr = cv2.imread(f"{self.image_dir}/{self.x_paths[i]}")
+        assert bgr is not None, f"failed to read {self.image_dir}/{self.x_paths[i]}"
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         return rgb
 
-    def __getitem__(self, i: int):
+    def __getitem__(self, i: int):  # ty: ignore[invalid-method-override]  # parameter name differs from Dataset
         image = self.get_original_image(i)
         # crop
         if self.data_aug:
@@ -133,14 +138,13 @@ def load_df(in_base_dir: str, cfg: Config, filename: str, is_train: bool) -> pd.
         df.individual_id = label_encoder.transform(df.individual_id)
         assert cfg.num_classes == len(label_encoder.classes_)
     if hasattr(df, "species"):
-        df.species.replace(
+        df["species"] = df.species.replace(
             {
                 "globis": "short_finned_pilot_whale",
                 "pilot_whale": "short_finned_pilot_whale",
                 "kiler_whale": "killer_whale",
                 "bottlenose_dolpin": "bottlenose_dolphin",
             },
-            inplace=True,
         )  # https://www.kaggle.com/c/happy-whale-and-dolphin/discussion/305574
         label_encoder_species = preprocessing.LabelEncoder()
         label_encoder_species.classes_ = np.load(f"{in_base_dir}/species.npy", allow_pickle=True)

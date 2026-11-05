@@ -66,7 +66,7 @@ def binary_search_threshold(n_class: int, mat: torch.Tensor, new_ratio: float) -
     for _ in range(30):
         mid = (ok + ng) / 2
         out_new = torch.cat([mat, torch.full((mat.shape[0], 1), mid, device=mat.device)], dim=1)
-        if (out_new.argmax(1) == n_class).to(float).mean() <= new_ratio:
+        if (out_new.argmax(1) == n_class).to(torch.float64).mean() <= new_ratio:
             ok = mid
         else:
             ng = mid
@@ -104,6 +104,7 @@ def make_submission(
         mat_csr = knn_csr * knn_ratio + logit_mat_csr * (1 - knn_ratio)
         csr_sum = mat_csr if csr_sum is None else csr_sum + mat_csr
         species_mats.append(test_results["pred_species"])
+    assert csr_sum is not None
     ensembled_mat = (csr_sum / len(train_paths)).todense()
     species_mat = np.stack(species_mats).mean(0)
     out = torch.tensor(ensembled_mat)

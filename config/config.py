@@ -8,7 +8,7 @@ class Config(dict):
         try:
             val = self[key]
         except KeyError:
-            return super().__getattr__(key)
+            raise AttributeError(key) from None
         if isinstance(val, dict):
             return Config(val)
         return val

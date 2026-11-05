@@ -1,4 +1,7 @@
-FROM nvcr.io/nvidia/pytorch:22.02-py3
+FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# Install dependencies only; mount the repository at runtime.
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+COPY pyproject.toml uv.lock /opt/project/
+RUN uv sync --locked --no-dev --project /opt/project
+ENV PATH="/opt/venv/bin:$PATH"

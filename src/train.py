@@ -1,7 +1,7 @@
 import argparse
 import os
 import warnings
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import optuna
@@ -9,10 +9,10 @@ import pandas as pd
 import timm
 import torch
 import wandb
-from optuna.integration import PyTorchLightningPruningCallback
-from pytorch_lightning import LightningDataModule, LightningModule, Trainer
-from pytorch_lightning import loggers as pl_loggers
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from lightning.pytorch import LightningDataModule, LightningModule, Trainer
+from lightning.pytorch import loggers as pl_loggers
+from lightning.pytorch.callbacks import Callback, LearningRateMonitor, ModelCheckpoint
+from optuna_integration import PyTorchLightningPruningCallback
 from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import ConcatDataset, DataLoader
 
@@ -42,7 +42,7 @@ class WhaleDataModule(LightningDataModule):
         image_dir: str,
         val_bbox_name: str,
         fold: int,
-        additional_dataset: WhaleDataset = None,
+        additional_dataset: Optional[WhaleDataset] = None,
     ):
         super().__init__()
         self.cfg = cfg
@@ -61,7 +61,7 @@ class WhaleDataModule(LightningDataModule):
             self.val_df = df.iloc[val_idx].copy()
             # relabel ids not included in training data as "new individual"
             new_mask = ~self.val_df.individual_id.isin(self.train_df.individual_id)
-            self.val_df.individual_id.mask(new_mask, cfg.num_classes, inplace=True)
+            self.val_df["individual_id"] = self.val_df.individual_id.mask(new_mask, cfg.num_classes)
             print(f"new: {(self.val_df.individual_id == cfg.num_classes).sum()} / {len(self.val_df)}")
 
     def get_dataset(self, df, data_aug):
@@ -82,7 +82,7 @@ class WhaleDataModule(LightningDataModule):
 
     def val_dataloader(self):
         if self.cfg.n_splits == -1:
-            return None
+            return []  # Lightning 2 rejects None; an empty list skips validation
         return DataLoader(
             self.get_dataset(self.val_df, False),
             batch_size=self.cfg.batch_size,
@@ -107,7 +107,9 @@ class SphereClassifier(LightningModule):
         if not isinstance(cfg, Config):
             cfg = Config(cfg)
         self.save_hyperparameters(cfg, ignore=["id_class_nums", "species_class_nums"])
-        self.test_results_fp = None
+        self.cfg = cfg
+        self.test_results_fp: Optional[str] = None
+        self.test_outputs: List[Dict[str, torch.Tensor]] = []
 
         # NN architecture
         self.backbone = timm.create_model(
@@ -118,7 +120,7 @@ class SphereClassifier(LightningModule):
             features_only=True,
             out_indices=cfg.out_indices,
         )
-        feature_dims = self.backbone.feature_info.channels()
+        feature_dims = self.backbone.feature_info.channels()  # ty: ignore[call-non-callable, unresolved-attribute]
         print(f"feature dims: {feature_dims}")
         self.global_pools = torch.nn.ModuleList(
             [GeM(p=cfg.global_pool.p, requires_grad=cfg.global_pool.train) for _ in cfg.out_indices]
@@ -167,7 +169,7 @@ class SphereClassifier(LightningModule):
                 on_step=False,
                 on_epoch=True,
             )
-        return loss_ids * self.hparams.loss_id_ratio + loss_species * (1 - self.hparams.loss_id_ratio)
+        return loss_ids * self.cfg.loss_id_ratio + loss_species * (1 - self.cfg.loss_id_ratio)
 
     def validation_step(self, batch, batch_idx):
         x, ids, species = batch["image"], batch["label"], batch["label_species"]
@@ -187,19 +189,19 @@ class SphereClassifier(LightningModule):
             list(self.neck.parameters()) + list(self.head_id.parameters()) + list(self.head_species.parameters())
         )
         params = [
-            {"params": backbone_params, "lr": self.hparams.lr_backbone},
-            {"params": head_params, "lr": self.hparams.lr_head},
+            {"params": backbone_params, "lr": self.cfg.lr_backbone},
+            {"params": head_params, "lr": self.cfg.lr_head},
         ]
-        if self.hparams.optimizer == "Adam":
+        if self.cfg.optimizer == "Adam":
             optimizer = torch.optim.Adam(params)
-        elif self.hparams.optimizer == "AdamW":
+        elif self.cfg.optimizer == "AdamW":
             optimizer = torch.optim.AdamW(params)
-        elif self.hparams.optimizer == "RAdam":
+        elif self.cfg.optimizer == "RAdam":
             optimizer = torch.optim.RAdam(params)
 
-        warmup_steps = self.hparams.max_epochs * self.hparams.warmup_steps_ratio
-        cycle_steps = self.hparams.max_epochs - warmup_steps
-        lr_lambda = WarmupCosineLambda(warmup_steps, cycle_steps, self.hparams.lr_decay_scale)
+        warmup_steps = self.cfg.max_epochs * self.cfg.warmup_steps_ratio
+        cycle_steps = self.cfg.max_epochs - warmup_steps
+        lr_lambda = WarmupCosineLambda(warmup_steps, cycle_steps, self.cfg.lr_decay_scale)
         scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
         return [optimizer], [scheduler]
 
@@ -210,19 +212,22 @@ class SphereClassifier(LightningModule):
         feat2 = self.get_feat(x.flip(3))
         out2, out_species2 = self.head_id(feat2), self.head_species(feat2)
         pred_logit, pred_idx = ((out1 + out2) / 2).cpu().sort(descending=True)
-        return {
-            "original_index": batch["original_index"],
-            "label": batch["label"],
-            "label_species": batch["label_species"],
-            "pred_logit": pred_logit[:, :1000],
-            "pred_idx": pred_idx[:, :1000],
-            "pred_species": ((out_species1 + out_species2) / 2).cpu(),
-            "embed_features1": feat1.cpu(),
-            "embed_features2": feat2.cpu(),
-        }
+        self.test_outputs.append(
+            {
+                "original_index": batch["original_index"],
+                "label": batch["label"],
+                "label_species": batch["label_species"],
+                "pred_logit": pred_logit[:, :1000],
+                "pred_idx": pred_idx[:, :1000],
+                "pred_species": ((out_species1 + out_species2) / 2).cpu(),
+                "embed_features1": feat1.cpu(),
+                "embed_features2": feat2.cpu(),
+            }
+        )
 
-    def test_epoch_end(self, outputs: List[Dict[str, torch.Tensor]]):
-        outputs = self.all_gather(outputs)
+    def on_test_epoch_end(self):
+        outputs = cast(List[Dict[str, torch.Tensor]], self.all_gather(self.test_outputs))
+        self.test_outputs.clear()
         if self.trainer.global_rank == 0:
             epoch_results: Dict[str, np.ndarray] = {}
             for key in outputs[0].keys():
@@ -231,7 +236,8 @@ class SphereClassifier(LightningModule):
                 else:
                     result = torch.cat([x[key] for x in outputs], dim=0)
                 epoch_results[key] = result.detach().cpu().numpy()
-            np.savez_compressed(self.test_results_fp, **epoch_results)
+            assert self.test_results_fp is not None
+            np.savez_compressed(self.test_results_fp, **epoch_results)  # ty: ignore[invalid-argument-type]
 
 
 def train(
@@ -240,7 +246,7 @@ def train(
     cfg: Config,
     fold: int,
     do_inference: bool = False,
-    additional_dataset: WhaleDataset = None,
+    additional_dataset: Optional[WhaleDataset] = None,
     optuna_trial: Optional[optuna.Trial] = None,
 ) -> Optional[float]:
     out_dir = f"{args.out_base_dir}/{args.exp_name}/{fold}"
@@ -257,18 +263,17 @@ def train(
                 project="kaggle-happywhale", group=args.exp_name, name=f"{args.exp_name}/{fold}", save_dir=out_dir
             )
         )
-    callbacks = [LearningRateMonitor("epoch")]
+    callbacks: List[Callback] = [LearningRateMonitor("epoch")]
     if optuna_trial is not None:
         callbacks.append(PyTorchLightningPruningCallback(optuna_trial, "val/mapNone"))
     if args.save_checkpoint:
         callbacks.append(ModelCheckpoint(out_dir, save_last=True, save_top_k=0))
     trainer = Trainer(
-        gpus=torch.cuda.device_count(),
         max_epochs=cfg["max_epochs"],
         logger=loggers,
         callbacks=callbacks,
-        checkpoint_callback=args.save_checkpoint,
-        precision=16,
+        enable_checkpointing=args.save_checkpoint,
+        precision="16-mixed" if torch.cuda.is_available() else "32-true",
         sync_batchnorm=True,
     )
     ckpt_path = f"{out_dir}/last.ckpt"
